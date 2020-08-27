@@ -42,6 +42,7 @@ O filesystem utilizando na execução de um container é provida pela imagem do 
 - `docker push usuario/image` - Envia uma imagem local criada através do Dockerfile para o DockerHub
 - `docker volume inspect <volume>` - Inspeciona os dados do volume (data, labels, caminho, nome, escopo)
 - `docker logs -f <container-id>` - Visualiza os logs do container
+- `docker exec -it <container-id> <comando>` - Executa um comando interno através da máquina host
 
 ## Volumes
 Volumes são utilizados para compartilhar informações entre o host e o container, além de também ser utilizado caso seja necessário compartilhar informações/pastas/db-files entre containers.
@@ -72,7 +73,7 @@ Para comparação entre os Volumes e os Bind Mounts.
 
 ### Iniciando um container em *Dev-Mode*
 ```sh
-docker run -dp 3000:3000 \
+$ docker run -dp 3000:3000 \
   -w /app -v "$(pwd):/all" \
   node:12-alpine \
   sh -c "yarn install && yarn run dev"
@@ -84,6 +85,29 @@ docker run -dp 3000:3000 \
 - `sh -c "yarn install && yarn run dev"` - O comando que será utilizado. Iniciando um shell usando `sh` (a imagem alpine não tem `bash`) e rodando `yarn install` para resolver todas as dependências do projeto e finalmente `yarn run dev`, que deve estar definido no `package.json` do projeto. Levando em consideração que o projeto do exemplo estaria rodando uma aplicação JS/TS/Node...
 
 A utilização das pastas vinculadas (*Bind Mounts*) é muito usada em setups de desenvolvimento. A grande vantagem é que a máquina local não necessita todas as ferramentas de build e ambientes instaladas. Com um simples comando `docker run` o ambiente de desenvolvimento está iniciado e pronto para ser utilizado.
+
+## Aplicações Multi-Container
+Quando falamos em aplicações distribuídas ou com a inclusão de banco de dados, devemos seguir o conceito de que cada container deve ter apenas uma aplicação, por diversas razões: Escalabilidade, versionamento de aplicação, deploy em produção apenas das aplicações necessárias e quando há mais de uma aplicação dentro de um container, será preciso um gerenciador de processos, o que adiciona complexidade no container e mais configurações para o startup/shutdown.
+
+### Container Networking
+Por padrão os containers rodam de forma isolada e não tem conhecimento sobre outros processos ou containers na mesma máquina. Para permitir que haja comunicação entre containers, utilizamos **networking**.
+
+> Se um ou mais containers estiverem na mesma network, eles serão capazes de conversar entre eles. Caso não estejam, não terão esta capacidade.
+
+#### Criando uma network
+```sh
+# $ docker network create <nome_da_network>
+docker network create todo-app
+
+# Iniciando um container com imagem mysql:5.1 utilizando network
+docker run -d \
+  --network todo-app --network-alias mysql \
+  -v todo-mysql-data:/var/lib/mysql \
+  -e MYSQL_ROOT_PASSWORD=secret \
+  -e MYSQL_DATABASE=todos \
+  mysql:5.7
+```
+> Este contém um volume chamado `todo-mysql-data` que está sendo montado em `/var/lib/mysql`, este volume nunca foi criado, porém o comando `docker` reconhece e, caso não exista, cria o volume automaticamente.
 
 ## Dockerfile
 Dockerfile são simplesmente scripts descritos com instruções que são usadas para a criação de uma imagem.
